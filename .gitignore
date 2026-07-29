@@ -1,0 +1,25 @@
+# Secrets & keys — never commit these
+*.key
+*.pem
+client.keys
+*.p12
+*.pfx
+.env
+secrets/
+
+# Wazuh / stack generated data
+config/certs/
+wazuh-docker/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.vscode/
+.idea/
+
+# Large binaries / installers
+*.iso
+*.msi
+*.exe
