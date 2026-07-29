@@ -44,6 +44,16 @@ This lab is built in stages, with a commit and a writeup at each milestone.
 - [ ] **Phase 6 — Local LLM alert triage** (Ollama + Mistral), keeping all telemetry on-device
 - [ ] **Phase 7 — Architecture diagram + full writeup**
 
+## Screenshots
+
+**Both endpoints reporting in** — the Windows 11 and Ubuntu endpoints enrolled and Active in the Wazuh dashboard:
+
+![Both endpoints Active in the Wazuh dashboard](docs/screenshots/agents-active.png)
+
+**Detection pipeline validated** — an SSH brute-force test against the Linux endpoint produced 18 authentication-failure alerts, which Wazuh automatically mapped to MITRE ATT&CK T1110 (Brute Force) and T1110.001 (Password Guessing):
+
+![SSH brute-force detection mapped to MITRE ATT&CK](docs/screenshots/bruteforce-detection.png)
+
 ## Stack
 
 - **Wazuh 4.14.5** — SIEM, deployed as a 3-container Docker stack (Manager, Indexer, Dashboard)
