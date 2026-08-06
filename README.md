@@ -37,7 +37,7 @@ Three virtual machines on an isolated VirtualBox host-only network (`192.168.56.
 This lab is built in stages, with a commit and a writeup at each milestone.
 
 - [x] **Phase 1 — Lab live.** Wazuh SIEM deployed via Docker Compose; Windows and Linux endpoints both enrolled and reporting as Active. Detection pipeline validated end to end: an SSH brute-force test against the Linux endpoint produced **18 authentication-failure alerts**, which Wazuh automatically mapped to **MITRE ATT&CK T1110 (Brute Force)** and **T1110.001 (Password Guessing)**.
-- [ ] **Phase 2 — Sysmon telemetry** (Olaf Hartong modular config) on the Windows endpoint
+- [x] **Phase 2 — Sysmon telemetry.** Sysmon with Olaf Hartong's sysmon-modular config on the Windows endpoint; the Wazuh agent forwards the Sysmon event channel into the manager (process, network, file, and registry telemetry). See [`config/sysmon-setup.md`](config/sysmon-setup.md).
 - [ ] **Phase 3 — 12 custom detection rules** mapped to MITRE ATT&CK across execution, persistence, privilege escalation, defense evasion, credential access, discovery, and C2
 - [ ] **Phase 4 — 6 AI/agent threat detections** mapped to MITRE ATLAS and the OWASP Agentic Top 10 (shadow AI, LLM data exfiltration, MCP/agent activity)
 - [ ] **Phase 5 — Rule validation** with Atomic Red Team
@@ -86,7 +86,8 @@ Agents are installed on each endpoint pointed at the manager (`192.168.56.10`) �
 
 ## Lessons Learned (running log)
 
-- **VM time sync matters in a SIEM.** After resuming a saved-state VM, the manager's clock had drifted two days behind, and new alerts were being stamped with the wrong date — invisible under "Last 15 minutes" until the clock was corrected. Everything in a SIEM correlates on timestamps, so accurate time is not optional.
+- **VM time sync matters in a SIEM.** After resuming a saved-state VM, the manager's clock had drifted days behind, and new alerts were being stamped with the wrong date — invisible under "Last 15 minutes" until the clock was corrected. Everything in a SIEM correlates on timestamps, so accurate time is not optional. Permanent fix: installed `chrony` so the clock re-syncs automatically.
+- **A SIEM only stores what a rule matches.** Wazuh indexes events that trigger a rule (an alert); benign Sysmon activity is level 0 and isn't stored. Verifying the Sysmon pipeline meant looking for the *interesting* events, not raw volume — which is exactly why the custom detection rules in Phase 3 are the whole point.
 - *(more added as the build continues)*
 
 ## References
