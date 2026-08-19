@@ -697,6 +697,19 @@
     <!-- Event ID 3 == Network Connection - Includes -->
     <RuleGroup groupRelation="or">
       <NetworkConnect onmatch="include">
+        <!-- SOC Lab: log outbound connections from scripting / LOLBin processes (feeds rules 100012, 100013, 100017) -->
+        <Image condition="image">powershell.exe</Image>
+        <Image condition="image">pwsh.exe</Image>
+        <Image condition="image">cmd.exe</Image>
+        <Image condition="image">wscript.exe</Image>
+        <Image condition="image">cscript.exe</Image>
+        <Image condition="image">mshta.exe</Image>
+        <Image condition="image">rundll32.exe</Image>
+        <Image condition="image">regsvr32.exe</Image>
+        <Image condition="image">certutil.exe</Image>
+        <Image condition="image">curl.exe</Image>
+        <Image condition="image">python.exe</Image>
+        <Image condition="image">node.exe</Image>
         <Image name="technique_id=T1021,technique_name=Remote Services" condition="image">vnc.exe</Image>
         <Image name="technique_id=T1021,technique_name=Remote Services" condition="image">vncviewer.exe</Image>
         <Image name="technique_id=T1021,technique_name=Remote Services" condition="image">vncservice.exe</Image>
