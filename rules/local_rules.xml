@@ -9,13 +9,16 @@
     Tactics covered: Execution, Persistence, Privilege Escalation,
     Defense Evasion, Credential Access, Discovery, Command and Control.
 
-  Phase 4 (later) will add AI/agent detections in the 100013-100018 range.
+  Phase 4 — 6 AI/agent detections (rule IDs 100013-100018)
+    Shadow AI, LLM data exfiltration, MCP/agent activity.
+    Mapped to MITRE ATLAS + OWASP Agentic Top 10 (see per-rule comments).
 
   PARENT RULE IDs (<if_sid>) — VERIFY THESE AGAINST YOUR OWN INSTALL.
   Sysmon child-rule IDs can shift between ruleset versions. To confirm one:
   trigger the event on win-ep1, open it in Discover, and read its rule.id.
     61603  Sysmon EID 1   ProcessCreate
     61605  Sysmon EID 3   NetworkConnect
+    61650  Sysmon EID 22  DnsQuery         (confirmed - used by rule 100015)
     61612  Sysmon EID 10  ProcessAccess
     61615  Sysmon EID 13  RegistryValueSet
 
@@ -169,6 +172,81 @@
     <description>Suspicious process making outbound HTTP/HTTPS connection - possible C2</description>
     <mitre><id>T1071.001</id></mitre>
     <group>command_and_control,</group>
+  </rule>
+
+
+  <!-- ========================================================================
+       PHASE 4 — AI / AGENT THREAT DETECTIONS (rule IDs 100013-100018)
+       ATLAS = MITRE ATLAS (atlas.mitre.org); ASI = OWASP Top 10 for Agentic Apps.
+       Wazuh's <mitre><id> accepts standard ATT&CK IDs only, so ATLAS / ASI
+       references live in <group> tags and in the comment above each rule.
+       Network parent is 61605 (EID 3); DNS parent is 61650 (EID 22) - both
+       confirmed against this install's ruleset.
+       ===================================================================== -->
+
+  <!-- 100013 | ATLAS AML.T0024 Exfiltration via AI Inference API | OWASP LLM02
+       Scripting / LOLBin process making an outbound web connection - possible
+       data exfil to an LLM API. Strongest paired with 100015 (DNS to AI domain). -->
+  <rule id="100013" level="10">
+    <if_sid>61605</if_sid>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(80|443)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(powershell|pwsh|cmd|wscript|cscript|mshta|rundll32|regsvr32|certutil|bitsadmin|curl|python|node)\.exe$</field>
+    <description>Scripting process made outbound web connection - possible data exfiltration to LLM inference API</description>
+    <mitre><id>T1567</id></mitre>
+    <group>ai_security,exfiltration,atlas_aml_t0024,owasp_llm02,</group>
+  </rule>
+
+  <!-- 100014 | ATLAS AML.T0012 Shadow AI - local LLM runtime executed.
+       Level 8: a governance signal for an analyst, not a wake-someone-up alert. -->
+  <rule id="100014" level="8">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(ollama|ollama app|lm ?studio|jan|gpt4all|llamacpp|koboldcpp)\.exe$</field>
+    <description>Local LLM runtime executed on managed endpoint - shadow AI</description>
+    <mitre><id>T1059</id></mitre>
+    <group>ai_security,shadow_ai,atlas_aml_t0012,</group>
+  </rule>
+
+  <!-- 100015 | ATLAS AML.T0012 AI usage visibility - endpoint resolved an LLM
+       provider domain. Level 4: informational, builds an AI-usage picture.
+       if_sid 61650 = Sysmon EID 22 (DnsQuery), confirmed on this install. -->
+  <rule id="100015" level="4">
+    <if_sid>61650</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(api\.openai\.com|api\.anthropic\.com|generativelanguage\.googleapis\.com|api\.cohere\.ai|api\.mistral\.ai|api\.groq\.com|.*\.openai\.azure\.com|bedrock.*\.amazonaws\.com|api\.together\.xyz|openrouter\.ai)</field>
+    <description>Endpoint resolved LLM API provider domain - AI service usage visibility</description>
+    <mitre><id>T1071.004</id></mitre>
+    <group>ai_security,ai_governance,shadow_ai,atlas_aml_t0012,</group>
+  </rule>
+
+  <!-- 100016 | Shadow AI governance - AI CLI tool executed. Complements 100014. -->
+  <rule id="100016" level="6">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(ollama\s+(run|pull|serve)|\bllm\s+(-|--|"|')|aichat\s+|\bchatgpt-cli\b|\banthropic\s+messages\b)</field>
+    <description>AI CLI tool executed on endpoint - shadow AI usage</description>
+    <mitre><id>T1059</id></mitre>
+    <group>ai_security,shadow_ai,</group>
+  </rule>
+
+  <!-- 100017 | ATLAS AML.T0012 - connection to a local LLM API port.
+       11434 = Ollama, 1234 = LM Studio. 8080 omitted here - too noisy in-lab. -->
+  <rule id="100017" level="9">
+    <if_sid>61605</if_sid>
+    <field name="win.eventdata.destinationPort" type="pcre2">^(11434|1234)$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(python|node|curl|powershell|pwsh)\.exe$</field>
+    <description>Process connected to local LLM API port - local model in use, check if exposed</description>
+    <mitre><id>T1071</id></mitre>
+    <group>ai_security,shadow_ai,atlas_aml_t0012,</group>
+  </rule>
+
+  <!-- 100018 | OWASP ASI02 Tool Misuse, ASI04 Agentic Supply Chain | ATLAS AML.T0110
+       MCP server / AI-agent tool process. Standout rule - few write MCP detections.
+       MCP servers are privileged third-party integrations; poisoned tool metadata
+       is a documented attack pattern. -->
+  <rule id="100018" level="8">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(mcp-server|@modelcontextprotocol|npx\s+.*mcp|uvx\s+.*mcp|mcp\.json|claude_desktop_config\.json)</field>
+    <description>MCP server or AI agent tool process detected - verify against approved agent inventory</description>
+    <mitre><id>T1059</id></mitre>
+    <group>ai_security,agentic_ai,mcp,owasp_asi02,owasp_asi04,atlas_aml_t0110,</group>
   </rule>
 
 </group>
